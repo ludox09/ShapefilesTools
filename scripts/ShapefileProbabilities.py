@@ -4,6 +4,9 @@ import numpy as np
 import MatrixPlot as mp
 import parameters as param
 from matplotlib import cm 
+import infolog
+import argparse
+import json
 
 def union(a,b):
   c = a
@@ -113,9 +116,7 @@ def ExportMatrix(name,year1,year2,layer,groupmap):
             mat[i][j] = overdic[g1,g2]
             sur[i][j] = surfdic[g1,g2]
     
-    np.save("RPG-%d-%d-%s"%(year1,year2,name), mat)
-    np.save("SUR-%d-%d-%s"%(year1,year2,name), sur)
-    titles = [
+        titles = [
     "Rotation RPG %d (V) and %d (H) - %s - Parcel Number"%(year1,year2,name),
     "Rotation RPG %d (V) and %d (H) - %s - Surface ($ha$)"%(year1,year2,name),
     "Rotation RPG %d (V) and %d (H) - %s - Conditionnal Probabilities"%(year1,year2,name),
@@ -128,7 +129,10 @@ def ExportMatrix(name,year1,year2,layer,groupmap):
     pj = np.sum(sur, axis=1)
     InvPro = 100.0*sur/pi[None,:]
     CondPro = 100.0*sur/pj[:,None]
-   
+ 
+    # Export to file #
+    np.savez("StatStructure-%d-%d-%s"(year1,year2,name), parcels=mat, surface=sur,condproba=CondPro,invproba=InvPro)
+
     matList = [mat,sur,CondPro,InvPro]
     #colormapList = ["rainbow","rainbow","ocean"] 
     colormapList = ["rainbow","rainbow","white","white"] 
@@ -146,41 +150,60 @@ def ExportMatrix(name,year1,year2,layer,groupmap):
 #print fval,fcol
 
 
-# Input variables #
-shpname = sys.argv[1]
-year1 = int(sys.argv[2])
-year2 = int(sys.argv[3])
-print("Input shapefile: %s"%(shpname))
-print "Year 1: %d"%(year1)
-print "Year 2: %d"%(year2)
+######################################################## MAIN #################################################################
+if __name__ == "__main__":
 
-# Open and initialize shapefile #
-driver = ogr.GetDriverByName('ESRI Shapefile')
-datasource = driver.Open(shpname, 1)
-if datasource is None:
-  print 'Could not open file'
-  sys.exit(1)
+    parser=argparse.ArgumentParser()
+    parser.add_argument("-in", "--inputfile", nargs='+', help="Input shapefile")
+    parser.add_argument("-y", "--years", nargs='+',help="""Couple of years.
+Syntax:
+./ShapefileEditor.py -in shapefile.shp -y 15 16"
+""")
+    args=parser.parse_args()
+ 
+    if (args.inputfile==None and  args.years==None):
+      # Handle help message because mutual exclusive option required it.
+      print "usage: ShapefileEditor [-h]  [-in] SHAPEFILES [-y] year1 year2"
+      print "ShapefileEditor: error: too few arguments"
+      quit()
 
-layer = datasource.GetLayer()
-nf = layer.GetFeatureCount()
-print "# feature = ",nf
-
-# Export matrix with precise gathering
-print "Export matrix with precise gathering"
-ExportMatrix("Precise-Filtered",year1,year2,layer,groupmap1)
-
-# Export matrix with large gathering
-print "Export matrix with large gathering"
-ExportMatrix("Large-Filtered",year1,year2,layer,groupmap2)
-
-# Export matrix with large gathering
-print "Export matrix with large gathering"
-ExportMatrix("Season-Filtered",year1,year2,layer,groupmap3)
-
-file1 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Precise-Filtered") 
-file2 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Large-Filtered") 
-file3 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Season-Filtered") 
-fileout = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Filtered") 
-
-os.system("pdfunite %s %s %s %s"%(file1,file2,file3,fileout))
-
+    else:
+    
+      log = infolog.infolog()
+      shpname = args.inputfile[0]
+      year1 = int(args.years[0])
+      year2 = int(args.years[1])
+      log.msg("Input shapefile: %s"%(shpname))
+      log.msg("Year 1: %d"%(year1))
+      log.msg("Year 2: %d"%(year2))
+     
+      # Open and initialize shapefile #
+      driver = ogr.GetDriverByName('ESRI Shapefile')
+      datasource = driver.Open(shpname, 1)
+      if datasource is None:
+        print 'Could not open file'
+        sys.exit(1)
+      
+      layer = datasource.GetLayer()
+      nf = layer.GetFeatureCount()
+      log.msg("# feature = %d"%(nf))
+      
+      # Export matrix with precise gathering
+      log.msg("Export matrix with precise gathering")
+      ExportMatrix("Precise-Filtered",year1,year2,layer,groupmap1)
+      
+      # Export matrix with large gathering
+      log.msg("Export matrix with large gathering")
+      ExportMatrix("Large-Filtered",year1,year2,layer,groupmap2)
+      
+      # Export matrix with large gathering
+      log.msg("Export matrix with large gathering")
+      ExportMatrix("Season-Filtered",year1,year2,layer,groupmap3)
+      
+      file1 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Precise-Filtered") 
+      file2 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Large-Filtered") 
+      file3 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Season-Filtered") 
+      fileout = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Filtered") 
+      
+      os.system("pdfunite %s %s %s %s"%(file1,file2,file3,fileout))
+  

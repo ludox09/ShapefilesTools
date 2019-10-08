@@ -15,7 +15,6 @@ class infolog():
           self.level = os.environ['LOGLEVEL']
       except:
           self.level = level
-      print self.level
       self.listLevels = ["DEBUG","INFO","WARNING","ERROR","FATAL"] 
       self.Lev = {"DEBUG":"DEBUG",
 		  "INFO":"\033[32mINFO\033[0m",

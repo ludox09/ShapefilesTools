@@ -112,11 +112,11 @@ def StatField(inputfile, statistics):
     year2 = int(inlist[1])
 
 
-    print "*** Options chosen for the statistics ***"
-    log.msg("Year1: %s"%year1)
-    log.msg("Year2: %s"%year2)
-    log.msg(classFilterType[inlist[2]])
-    log.msg(featureFilterType[inlist[3]]) 
+    log.msg("Options chosen for the statistics:")
+    log.msg("    - Year1: %s"%year1)
+    log.msg("    - Year2: %s"%year2)
+    log.msg("    - " + classFilterType[inlist[2]])
+    log.msg("    - " + featureFilterType[inlist[3]]) 
     #log.msg(deleteType[inlist[3]])
      
     classFilter = inlist[2]   #False(default) Stat on al class. True: Only selected class
@@ -285,7 +285,7 @@ def StatField(inputfile, statistics):
 
     tf = "|l||r|r||r|r||r|r||r|r||r|r||r|r||r|r||r|r|"
     #head = [["Class","P%d"%(year1),"S%d"%(year1),"P%d"%(year2),"S%d"%(year2),"UP%d"%(year1),"US%d"%(year1),"UP%d"%(year2),"US%d"%(year2),"DS%d"%(year1),"DS%d"%(year2)]]
-    head = [["Class","P%d"%(year1),"S%d"%(year1),"P%d"%(year2),"S%d"%(year2),"UP%d"%(year1),"US%d"%(year1),"UP%d"%(year2),"US%d"%(year2),"IP%d"%(year1),"IS%d"%(year1),"IP%d"%(year2),"IS%d"%(year2),"DUS%d"%(year1),"DUS%d"%(year1),"DIS%d"%(year2),"DIS%d"%(year2)]]
+    head = [["Class","P%d"%(year1),"S%d"%(year1),"P%d"%(year2),"S%d"%(year2),"UP%d"%(year1),"US%d"%(year1),"UP%d"%(year2),"US%d"%(year2),"IP%d"%(year1),"IS%d"%(year1),"IP%d"%(year2),"IS%d"%(year2),"DUS%d"%(year1),"DUS%d"%(year2),"DIS%d"%(year1),"DIS%d"%(year2)]]
     mat = []
     rsum = 0.0
     for k in sorted (stat.keys()):
