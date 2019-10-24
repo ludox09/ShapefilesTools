@@ -21,6 +21,8 @@ log = infolog.infolog()
 subclasses = param.subclasses
 groupmap1   = param.groupmap1
 
+rpgClasses = param.rpgClasses
+derobesClasses = param.derobesClasses
 
 # Add new type if needed
 code2type = {ogr.OFTInteger:  "Int   ",
@@ -131,34 +133,48 @@ def RenameField(inputfile, mappingstring):
 
 def CreateField(inputfile, fieldlist):
     """ Create field"""
- 
-    if fieldlist[1] not in type2code:
-        log.msg("%s is not a valide field type"%(fieldlist[1]),"ERROR")
-        quit()
+    for inputf in inputfile:
 
-    column = fieldlist[0]
-    ogrtype = type2code[fieldlist[1]]
-
-    log.msg("Create field %s of type %s"%(column,code2type[ogrtype]))
-
-    driver = ogr.GetDriverByName('ESRI Shapefile')
-    datasource = driver.Open(inputfile, 1)
-
-    if datasource is None:
-        log.msg("Could not open file","ERROR")
-        sys.exit(1)
-
-    # get the data layer
-    layer = datasource.GetLayer()
-    layer_defn = layer.GetLayerDefn()
+        log.msg("Input Shapefile: %s"%(inputf))
+        column =  fieldlist[0]
+        ftype  =  fieldlist[1]
     
-    # Add a new field
-    new_field = ogr.FieldDefn(column, ogrtype)
-    #new_field.SetWidth(11)
-    #new_field.SetPrecision(3)
-    layer.CreateField(new_field)
-
-    datasource = None
+        if ftype not in type2code:
+            log.msg("%s is not a valide field type"%(ftype),"ERROR")
+            quit()
+    
+        ogrtype = type2code[ftype]
+    
+        try:
+            width     = int(fieldlist[2])
+            precision = int(fieldlist[3])
+            log.msg("Create field %s of type %s with %d width and %d precison"%(column,code2type[ogrtype],width,precision))
+        except:
+            log.msg("Create field %s of type %s"%(column,code2type[ogrtype]))
+    
+        driver = ogr.GetDriverByName('ESRI Shapefile')
+        datasource = driver.Open(inputf, 1)
+    
+        if datasource is None:
+            log.msg("Could not open file","ERROR")
+            sys.exit(1)
+    
+        # get the data layer
+        layer = datasource.GetLayer()
+        layer_defn = layer.GetLayerDefn()
+        
+        # Add a new field
+        new_field = ogr.FieldDefn(column, ogrtype)
+        try:
+            width     = int(fieldlist[2])
+            precision = int(fieldlist[3])
+            new_field.SetWidth(width)
+            new_field.SetPrecision(precision)
+        except:
+            pass
+        layer.CreateField(new_field)
+    
+        datasource = None
 
 
 def AddSurface(inputfile, column):
@@ -194,25 +210,26 @@ def AddSurface(inputfile, column):
     datasource = None
 
 
-def DeleteField(inputfile, field):
+def DeleteField(inputfile, fields):
     """ Delete Field"""
-    resp = raw_input("Are you sure you want to delete the field %s (y or n) ?"%(field))  
-    if resp == 'y':
- 
-        driver = ogr.GetDriverByName('ESRI Shapefile')
-        datasource = driver.Open(inputfile, 1)
 
-        if datasource is None:
-            log.msg("Could not open file","ERROR")
-            sys.exit(1)
+    driver = ogr.GetDriverByName('ESRI Shapefile')
+    datasource = driver.Open(inputfile, 1)
 
-        # get the data layer
-        layer = datasource.GetLayer()
-        layer_defn = layer.GetLayerDefn()
-        print "Delete field %s"%(field)
-        layer.DeleteField(layer_defn.GetFieldIndex(field))
+    if datasource is None:
+        log.msg("Could not open file","ERROR")
+        sys.exit(1)
 
-        datasource = None
+    for fi in fields:
+        resp = raw_input("Are you sure you want to delete the field %s (y or n) ?"%(fi))  
+        if resp == 'y':
+            # get the data layer
+            layer = datasource.GetLayer()
+            layer_defn = layer.GetLayerDefn()
+            print "Delete field %s"%(fi)
+            layer.DeleteField(layer_defn.GetFieldIndex(fi))
+
+    datasource = None
 
 def StatField(inputfile, statistics):
     """ Calculate shapefile statistic """
@@ -366,7 +383,56 @@ def RemovePolygons(inputfile, removefile):
      #   fid = f.GetFID()
      #   print "[AFT]",fid,f["ID"],f["C17"],f["S17"]
         
-        
+def Execute(inputfile, param):
+    """ Calculate shapefile statistic """
+    inputf = inputfile[0]
+
+    kin1 = param[0]
+    kout = param[1]
+
+    log.msg("Shapefile  %s is going to be update"%(inputf))
+    log.msg("Conversion RPG from %s to %s"%(kin1,kout))
+
+    driver = ogr.GetDriverByName('ESRI Shapefile')
+    datasource = driver.Open(inputf, 1)
+
+    if datasource is None:
+        log.msg("Could not open file","ERROR")
+        sys.exit(1)
+
+    # get the data layer
+    layer = datasource.GetLayer()
+    layer_defn = layer.GetLayerDefn()
+  
+    total = 0
+    type1 = 0
+    type2 = 0
+    type3 = 0
+    for fi in layer:
+        total += 1
+        incolumn = fi[kin1]
+        #layer.SetFeature(i)
+        try:
+            val = rpgClasses.index(incolumn) + 1
+            type1 += 1
+        except:
+            try:
+                val = derobesClasses.index(incolumn) + 1
+                type2 += 1
+            except:
+                try:
+                    incolumn = fi[kin2]
+                    val = derobesClasses.index(incolumn) + 1
+                    type3 += 1
+                except:
+                    val = 0
+
+        fi.SetField(kout, val)
+        layer.SetFeature(fi)
+    log.msg("Total: %d"%(total))
+    log.msg("Type Class RGP: %d"%(type1))
+    log.msg("Type Derobe 1: %d"%(type2))
+    log.msg("Type Derobe 2: %d"%(type3))
 
 
 def Union(inputfiles, outputfile):
@@ -403,15 +469,21 @@ if __name__ == "__main__":
     parser.add_argument("-re", "--rename", help="""Rename shapefile field. Syntax example:
 ./ShapefileEditor.py -in shapefile.shp -re "{'Old1':'New1','Old2':'New2'}"
 """)
-    parser.add_argument("-cr", "--create", help="Create new fields of give type")
+    parser.add_argument("-cr", "--create", nargs='+', help="""Create new fields of give type, width and precision
+ Syntax:
+./ShapefileEditor.py -in shapefile.shp -cr ColomnName Type (Width Precision) 
+ Example:
+./ShapefileEditor.py -in shapefile.shp -cr Value Int 11 3 
+    """)
     parser.add_argument("-ar", "--area", help="Create new field that contains polygon area.")
-    parser.add_argument("-de", "--delete", help="Delete the field filed_name.")
+    parser.add_argument("-de", "--delete", nargs="+", help="Delete the field field_name.")
     parser.add_argument("-st", "--statistics", nargs='+',help="""Calculate statistics for a given field.
 Syntax:
-./ShapefileEditor.py -in shapefile.shp -st field classfilter featurefilter"
+./ShapefileEditor.py -in shapefile.shp -st field classfilter featurefilter
 """)
     parser.add_argument("-un", "--union", help="Create the geometric union between two shapefiles.")
     parser.add_argument("-rm", "--remove", help="Remove polygons with id contain in given file.")
+    parser.add_argument("-ex", "--execute", nargs="+",help="Execute hardcoded algorithm. See source code")
     args=parser.parse_args()
  
     if (args.inputfile==None and 
@@ -422,7 +494,7 @@ Syntax:
         args.statistics==None and
         args.union==None):
       # Handle help message because mutual exclusive option required it.
-      print "usage: ShapefileEditor [-h] [-re] namelist [-cr] namelist [-ar] column_name [-de] field_name [-st] column_name -[un] output_shapefile [-rm] remove.csv [-in] SHAPEFILES"
+      print "usage: ShapefileEditor [-h] [-re] namelist [-cr] namelist [-ar] column_name [-de] field_name [-st] column_name -[un] output_shapefile [-rm] remove.csv [-ex] parameters [-in] SHAPEFILES"
       print "ShapefileEditor: error: too few arguments"
       quit()
 
@@ -455,5 +527,9 @@ Syntax:
 
     if args.inputfile!=None and args.union!=None:
       Union(args.inputfile,args.union)
+      quit()
+
+    if args.inputfile!=None and args.execute!=None:
+      Execute(args.inputfile,args.execute)
       quit()
 

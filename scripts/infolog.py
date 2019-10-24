@@ -30,12 +30,22 @@ class infolog():
       return self.level
 
     def msg(self,message,msglevel="INFO"):
+      if isinstance(message, tuple):
+          message = list(message)
+      else:
+          message = [message]
+        
       if(msglevel in self.listLevels):
         t = datetime.datetime.now()
         if msglevel== 'DEBUG':
-            text = "[%s][%s] %s"%(t.strftime('%Y-%m-%d %H:%M:%S.%f'),self.Lev[msglevel],message)
+            text = "[{time}][{level}]".format(time = t.strftime('%Y-%m-%d %H:%M:%S.%f'), level = self.Lev[msglevel])
+            for m in message:
+                text = text + " {m}".format(m=m) 
         else:
-            text = "[%s][%s] %s"%(t.strftime('%Y-%m-%d %H:%M:%S'),self.Lev[msglevel],message)
+            text = "[{time}][{level}]".format(time = t.strftime('%Y-%m-%d %H:%M:%S'), level = self.Lev[msglevel])
+            for m in message:
+                text = text + " {m}".format(m=m) 
+
         msgidx = self.listLevels.index(msglevel)
         idx = self.listLevels.index(self.level)
         if( msgidx >= idx):
@@ -51,6 +61,7 @@ if __name__ == '__main__':
     #print log.get_level()
     log.msg("debug","DEBUG")
     log.msg("info")
+    log.msg(("info","param"))
     log.msg("warning","WARNING")
     log.msg("error","ERROR")
     log.msg("fatal","FATAL")

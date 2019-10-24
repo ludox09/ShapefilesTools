@@ -7,6 +7,7 @@ from matplotlib import cm
 import infolog
 import argparse
 import json
+import pickle
 
 def union(a,b):
   c = a
@@ -74,7 +75,11 @@ def ExportMatrix(name,year1,year2,layer,groupmap):
     Nc = len(sc)
     print "Subclasses common between the two years."
     print sc
-    
+    legendfile =  open("Legend-%d-%d-%s"%(year1,year2,name), 'wb')
+    pickle.dump(sc,legendfile)
+    legendfile.close()
+    return
+     
     # Prefill Overlap Dictionary #
     overdic = {}
     surfdic = {}
@@ -116,7 +121,7 @@ def ExportMatrix(name,year1,year2,layer,groupmap):
             mat[i][j] = overdic[g1,g2]
             sur[i][j] = surfdic[g1,g2]
     
-        titles = [
+    titles = [
     "Rotation RPG %d (V) and %d (H) - %s - Parcel Number"%(year1,year2,name),
     "Rotation RPG %d (V) and %d (H) - %s - Surface ($ha$)"%(year1,year2,name),
     "Rotation RPG %d (V) and %d (H) - %s - Conditionnal Probabilities"%(year1,year2,name),
@@ -131,7 +136,7 @@ def ExportMatrix(name,year1,year2,layer,groupmap):
     CondPro = 100.0*sur/pj[:,None]
  
     # Export to file #
-    np.savez("StatStructure-%d-%d-%s"(year1,year2,name), parcels=mat, surface=sur,condproba=CondPro,invproba=InvPro)
+    np.savez("StatStructure-%d-%d-%s"%(year1,year2,name), parcels=mat, surface=sur,condproba=CondPro,invproba=InvPro)
 
     matList = [mat,sur,CondPro,InvPro]
     #colormapList = ["rainbow","rainbow","ocean"] 
@@ -153,23 +158,23 @@ def ExportMatrix(name,year1,year2,layer,groupmap):
 ######################################################## MAIN #################################################################
 if __name__ == "__main__":
 
+    log = infolog.infolog()
     parser=argparse.ArgumentParser()
     parser.add_argument("-in", "--inputfile", nargs='+', help="Input shapefile")
     parser.add_argument("-y", "--years", nargs='+',help="""Couple of years.
 Syntax:
 ./ShapefileEditor.py -in shapefile.shp -y 15 16"
 """)
-    args=parser.parse_args()
+    parser.add_argument("-s", "--several", nargs='+',help="""List of consecutive years""")
  
-    if (args.inputfile==None and  args.years==None):
+    args=parser.parse_args()
+    if(args.inputfile==None and args.years==None and args.several==None):
       # Handle help message because mutual exclusive option required it.
-      print "usage: ShapefileEditor [-h]  [-in] SHAPEFILES [-y] year1 year2"
+      print "usage: ShapefileEditor [-h]  [-in] SHAPEFILES [-y] year1 year2 [-s] year1 year2 year3"
       print "ShapefileEditor: error: too few arguments"
       quit()
 
-    else:
-    
-      log = infolog.infolog()
+    if(args.years!=None):    
       shpname = args.inputfile[0]
       year1 = int(args.years[0])
       year2 = int(args.years[1])
@@ -206,4 +211,92 @@ Syntax:
       fileout = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Filtered") 
       
       os.system("pdfunite %s %s %s %s"%(file1,file2,file3,fileout))
-  
+
+    else:
+        statlist = args.inputfile
+	legendlist = ["Legend"+x[13:-4] for x in statlist]
+        yearlist = [int(x) for x in args.several]
+        ycouplelist = [[x,x+1] for x in yearlist]
+
+        # check if legend are the same between all couple of years
+        AllLegend = []
+        AllName = []
+        for legendfile in legendlist:
+	    legend=pickle.load(open(legendfile, 'rb'))
+	    AllLegend.append(legend)
+	    AllName.append(legendfile[13:])
+
+
+        QLegend = True
+        QName = True
+	for x,y in zip(AllLegend,AllName):
+	    QLegend = QLegend and (x==AllLegend[0])
+	    QName = QName and (y==AllName[0])
+ 
+	if QLegend and QName:
+
+            name = AllName[0]
+	    # Calculate Mean and std #
+            parcelsMean   = 0.0
+	    surfaceMean   = 0.0
+	    CondProbaMean = 0.0
+	    InvProbaMean  = 0.0
+
+            parcelsStd    = 0.0
+	    surfaceStd    = 0.0
+	    CondProbaStd  = 0.0
+	    InvProbaStd   = 0.0
+
+            Nmax = len(statlist)
+	    print Nmax
+            for legendfile,statfile,ycouple in zip(legendlist,statlist,ycouplelist):
+	        legend=pickle.load(open(legendfile, 'rb'))
+	        stat = np.load(statfile)
+
+                parcelsMean = parcelsMean + stat['parcels']/Nmax
+	        surfaceMean = surfaceMean + stat['surface']/Nmax
+	        CondProbaMean = CondProbaMean + stat['condproba']/Nmax
+	        InvProbaMean = InvProbaMean + stat['invproba']/Nmax
+
+       	        parcelsStd = parcelsStd + (stat['parcels']**2)/(Nmax)
+	        surfaceStd = surfaceStd + (stat['surface']**2)/(Nmax)
+	        CondProbaStd = CondProbaStd + (stat['condproba']**2)/(Nmax)
+	        InvProbaStd = InvProbaStd + (stat['invproba']**2)/(Nmax)
+
+            parcelsStd = np.sqrt(parcelsStd - (parcelsMean**2))
+            surfaceStd = np.sqrt(surfaceStd - (surfaceMean**2))
+            CondProbaStd = np.sqrt(CondProbaStd - (CondProbaMean**2))
+            InvProbaStd = np.sqrt(InvProbaStd - (InvProbaMean**2))
+
+            titlesMean = [
+                     "Rotation RPG - %s - Mean of Parcel Number"%(name),
+                     "Rotation RPG - %s - Mean of Surface ($ha$)"%(name),
+                     "Rotation RPG - %s - Mean of Conditionnal Probabilities"%(name),
+                     "Rotation RPG - %s - Mean of Inversed Probabilities"%(name)
+                      ]
+            titlesStd = [
+                     "Rotation RPG - %s - Std of Parcel Number"%(name),
+                     "Rotation RPG - %s - Std of Surface ($ha$)"%(name),
+                     "Rotation RPG - %s - Std of Conditionnal Probabilities"%(name),
+                     "Rotation RPG - %s - Std of Inversed Probabilities"%(name)
+                      ]
+
+            matListMean = [parcelsMean,surfaceMean,CondProbaMean,InvProbaMean]
+            matListStd =  [parcelsStd,surfaceStd,CondProbaStd,InvProbaStd]
+
+
+            year1 = yearlist[0] 
+            year2 = yearlist[-1] 
+            colormapList = ["rainbow","rainbow","white","white"]
+	    log.msg("Export Mean values")
+            mp.exportNew(matListMean,colormapList,legend,"Mean-RPG-%d-%d-%s.pdf"%(year1,year2,name),titlesMean)
+
+	    log.msg("Export Std values")
+            mp.exportNew(matListStd,colormapList,legend,"Std-RPG-%d-%d-%s.pdf"%(year1,year2,name),titlesStd)
+
+	elif not(QLegend):
+	    log.msg("The legends between the different couples of year are different. Please check.","ERROR")
+
+        elif not(QName):
+	    log.msg("The type names between the different couples of year are different. Please check.","ERROR")
+
