@@ -224,10 +224,10 @@ stackfile = sys.argv[2]
 fieldList = ["I17","CODE17","CODE18","DERA18","DERB18"]
 #fieldList = ["CODE17"]
 
+tile = stackfile[22:27]
 try:
 
     #tile = stackfile[3:8]
-    tile = stackfile[22:27]
     rasterized_name = rastershapefile.split("/")[-1].split(".")[0] + "_Rasterized_%s_"%(tile) + stackfile.split("_")[-1]
     log.msg("Rasterize Output File: %s"%(rasterized_name))
     names = []
@@ -247,8 +247,11 @@ try:
 except:
     pass
 
-rasterized_name = "RPG201718-topo_rm-geotest_ero50cm-UnionSAGA-up-solo-sup1ha-ero195cm-sup1ha-scop_Rasterized_31TCJ_31TCJ.tif"
+#rasterized_name = "RPG201718-topo_rm-geotest_ero50cm-UnionSAGA-up-solo-sup1ha-ero195cm-sup1ha-scop_Rasterized_31TCJ_31TCJ.tif"
 print rasterized_name
+
+quit()
+
 #npparcels, parcels_list, parcels_count = numpyrize(rasterized_name, 1, nmin = 1000, nmax=1005, verbose=True)
 #npclasses, classes_list, classes_count = numpyrize(rasterized_name, 2, verbose=True)
 #npparcels, parcels_list, parcels_count = numpyrize(parcels_out, verbose=True)
@@ -299,7 +302,7 @@ for t in range(tmin,tmax):
  
 print profilesdf
 log.msg("Export mean and std profiles between date %d and %d"%(tmin,tmax))
-profilesdf.to_pickle("profiles_31TCJ_%d_%d.pkl"%(tmin,tmax))
+profilesdf.to_pickle("Profiles_%s_%s_%d_%d.pkl"%(prim,tile,tmin,tmax))
 log.msg("Done")
 
 #log.msg("Export to file")
