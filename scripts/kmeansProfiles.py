@@ -205,23 +205,35 @@ val = KmeansCounter[:,:,1]
 
 # Kmeans soil
 slim = 4
+npixels =  AllTable[npix]
 KmeansSoil = AllSoil
+KmeansSoil['npixels'] = npixels
 KmeansSoil['kmeans'] = labels
 npKmeansSoil = KmeansSoil.values
 
-MeansSoil = []
-print(npKmeansSoil,npKmeansSoil.shape)
+ListSoil = []
+ListSoilMainClass = []
+ListSoilMaxVal    = []
 for i in range(nclass):
-    MeansSoil.append(np.mean(npKmeansSoil[npKmeansSoil[:,-1] == i][:,:-1],axis=0))
+    #ListSoil.append((npKmeansSoil[npKmeansSoil[:,-1] == i][:,:-1]/npKmeansSoil[npKmeansSoil[:,-1] == i][:,-2,None])[:-1])
+    SoilVector =  (npKmeansSoil[npKmeansSoil[:,-1] == i][:,:-1]/npKmeansSoil[npKmeansSoil[:,-1] == i][:,-2,None])[:,:-1]
+    ListSoil.append(SoilVector)
+    ListSoilMainClass.append(np.argmax(SoilVector, axis = 1))
+    ListSoilMaxVal.append(np.max(SoilVector, axis = 1))
 
-print(SoilCol)
-for x in MeansSoil:
-    print(x.astype(np.int))
-    print(SoilCol[np.argmax(x)][5:])
+SoilCounter = []
+for i in range(nclass):
+    counter = collections.Counter(ListSoilMainClass[i])
+    counterList = [ [int(SoilCol[int(w)][5:]), counter[w]] for w in sorted(counter, key=counter.get, reverse=True)]
+    SoilCounter.append(counterList[:slim])
 
+SoilCountMatrix = np.array(SoilCounter)
 
+soilkey = SoilCountMatrix[:,:,0]
+soilval = SoilCountMatrix[:,:,1]
 
-quit()
+print(soilkey)
+print(soilval)
 
 
 #print KmeansMean.values.shape
@@ -271,9 +283,6 @@ ax3 = plt.subplot(gs[2,2])
 ax3.set_xticks(range(nclass))
 ax3.set_xlabel('Previous year class', fontsize = 10)
 ax3.set_xlim([-0.5, nclass])
-
-
-interrstClass = ["BTH","MIS","OTH"] 
 
 
 #axcolor = 'lightgoldenrodyellow'
@@ -332,7 +341,7 @@ for l in range(nclass):
     ax2.axvline(np.mean(data), ymin=0, ymax=100, color  = col, alpha = 0.5, lw = 0.5)
 
 barsPrevious = ax3.bar(range(nclass), val[:,0], width, color = colList, edgecolor = 'k')
-barsSoil     = ax3.bar(np.array(range(nclass)) + 0.1, val[:,0], width, color = colList, edgecolor = 'k', alpha = 0.5)
+barsSoil     = ax3.bar(np.array(range(nclass)) + 0.1, soilval[:,0], width, color = colList, edgecolor = 'k', alpha = 0.5)
 for i in range(1,klim):
     try:
         barsPrevious = barsPrevious + ax3.bar(range(nclass), val[:,i] , width, np.sum(val[:,:i],axis=1), color = colList, edgecolor = 'k')
@@ -341,16 +350,15 @@ for i in range(1,klim):
 
 for i in range(1,slim):
     try:
-        barsSoil = barsPrevious + ax3.bar(np.array(range(nclass)) + 0.1, val[:,i] , width, np.sum(val[:,:i],axis=1), color = colList, edgecolor = 'k', alpha = 0.5)
+        barsSoil = barsSoil + ax3.bar(np.array(range(nclass)) + 0.1, soilval[:,i] , width, np.sum(soilval[:,:i],axis=1), color = colList, edgecolor = 'k', alpha = 0.5)
     except:
         pass
-
-
-
 
 for x in range(nclass):
     for y,(k,v) in enumerate(zip(key[x],val[x])):
         ax3.text(x + 0.15, 100*y, "%s %d"%(code2rpg[int(k)],v) , fontsize = 8)
+    for y,(k,v) in enumerate(zip(soilkey[x],soilval[x])):
+        ax3.text(x + 0.15, 100*y + 600, "%s %d"%(k,v) , fontsize = 8)
                 
 
 
@@ -504,7 +512,7 @@ def onclick(event):
 
                 ax1.legend(bbox_to_anchor=(1.04,1), loc="upper left")
 
-
+                # PREVIOUS YEAR
                 KmeansTable = ClassTable
                 KmeansTable['kmeans'] = labels
                 KmeansPrevious = KmeansTable[[c1,"kmeans"]].values
@@ -521,22 +529,59 @@ def onclick(event):
                 key = KmeansCounter[:,:,0]
                 val = KmeansCounter[:,:,1]
 
+                # SOIL TYPE
+                npixels =  AllTable[npix]
+                KmeansSoil = AllSoil
+                KmeansSoil['npixels'] = npixels
+                KmeansSoil['kmeans'] = labels
+                npKmeansSoil = KmeansSoil.values
+                
+                ListSoil = []
+                ListSoilMainClass = []
+                ListSoilMaxVal    = []
+                for i in range(nclass):
+                    #ListSoil.append((npKmeansSoil[npKmeansSoil[:,-1] == i][:,:-1]/npKmeansSoil[npKmeansSoil[:,-1] == i][:,-2,None])[:-1])
+                    SoilVector =  (npKmeansSoil[npKmeansSoil[:,-1] == i][:,:-1]/npKmeansSoil[npKmeansSoil[:,-1] == i][:,-2,None])[:,:-1]
+                    ListSoil.append(SoilVector)
+                    ListSoilMainClass.append(np.argmax(SoilVector, axis = 1))
+                    ListSoilMaxVal.append(np.max(SoilVector, axis = 1))
+                
+                SoilCounter = []
+                for i in range(nclass):
+                    counter = collections.Counter(ListSoilMainClass[i])
+                    counterList = [ [int(SoilCol[int(w)][5:]), counter[w]] for w in sorted(counter, key=counter.get, reverse=True)]
+                    SoilCounter.append(counterList[:slim])
+                
+                SoilCountMatrix = np.array(SoilCounter)
+                
+                soilkey = SoilCountMatrix[:,:,0]
+                soilval = SoilCountMatrix[:,:,1]
+
                 ax3.cla()
                 ax3.set_xlim([-0.5, nclass])
                 ax3.set_xticks(range(nclass))
                 ax3.set_xlabel('Previous year class', fontsize = 10)
 
                 barsPrevious = ax3.bar(range(nclass), val[:,0], width, label = "test", color = colList, edgecolor = 'k')
+                barsSoil = ax3.bar(np.array(range(nclass)) + 0.1, soilval[:,0], width, label = "test", color = colList, edgecolor = 'k', alpha = 0.5)
                 for i in range(1,klim):
                     try:
-                        barsPrevious = bars + ax3.bar(range(nclass), val[:,i] , width, np.sum(val[:,:i],axis=1), color = colList, edgecolor = 'k')
+                        barsPrevious = barsPrevious + ax3.bar(range(nclass), val[:,i] , width, np.sum(val[:,:i],axis=1), color = colList, edgecolor = 'k')
                     except:
-                        pass
+                        raise
+                    try:
+                        barsSoil = barsSoil + ax3.bar(np.array(range(nclass)) + 0.1, soilval[:,i] , width, np.sum(soilval[:,:i],axis=1), color = colList, edgecolor = 'k', alpha = 0.5)
+                    except:
+                        raise
+
 
                 for x in range(nclass):
                     for y,(k,v) in enumerate(zip(key[x],val[x])):
                         ax3.text(x + 0.15, 100*y, "%s %d"%(code2rpg[int(k)],v) , fontsize = 8)
+                    for y,(k,v) in enumerate(zip(soilkey[x],soilval[x])):
+                        ax3.text(x + 0.15, 100*y + 600, "%s %d"%(k,v) , fontsize = 8)
                 
+
 
                 #annot = ax3.annotate("", xy=(0,0), xytext=(0,120),textcoords="offset points",bbox=dict(boxstyle="round", fc="black", ec="b", lw=2))
 
