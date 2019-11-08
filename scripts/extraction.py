@@ -203,6 +203,13 @@ def npprimitive(img,t,prim):
         brightness = np.sqrt(brightness)
         return brightness
 
+    if prim == "SOIL":
+        SoilImg = img.GetRasterBand(1)
+        Val = np.array(SoilImg.ReadAsArray()).astype(np.float)
+        return Val
+
+ 
+
 def getPrimStat(p,X,Y,npprim):
         #mask = np.equal(npparcels,p)
         #masked = np.ma.array(npprim,mask = mask) 
@@ -268,7 +275,9 @@ log.msg("Open Image Stack %s (it might take a while)"%(stackfile))
 img = gdal.Open(stackfile)
 NFeatures = img.RasterCount
 NDates = NFeatures/10
-prim = "NDVI"
+#prim = "NDVI"
+prim = "SOIL"
+NDates = 1
 log.msg(("- Number of band",NFeatures))
 log.msg(("- Number of dates",NDates))
 log.msg(("- Primitives",prim))
@@ -294,11 +303,11 @@ for t in range(tmin,tmax):
         profilesdf.at[i,StrColMean] = meanprim
         profilesdf.at[i,StrColStdv] = stdprim
 
-        try:
-            profiles[int(p)][1].append(meanprim)
-            profiles[int(p)][2].append(stdprim)
-        except:
-            profiles[int(p)] = [[meanprim],[stdprim]]
+        #try:
+        #    profiles[int(p)][1].append(meanprim)
+        #    profiles[int(p)][2].append(stdprim)
+        #except:
+        #    profiles[int(p)] = [[meanprim],[stdprim]]
  
 print profilesdf
 log.msg("Export mean and std profiles between date %d and %d"%(tmin,tmax))
