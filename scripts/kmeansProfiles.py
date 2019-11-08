@@ -70,7 +70,8 @@ except:
 
 # Manage dates
 dates = np.loadtxt(datefile)
-locale.setlocale(locale.LC_TIME, "en_US")
+print(dates)
+#locale.setlocale(locale.LC_TIME, "en_US")
 dt  = [datetime.strptime(str(int(d)), '%Y%m%d') for d in dates]
 doy = [d.strftime('%d-%b') for d in dt]
 days = np.array([(d - dt[0]).days for d in dt])
@@ -260,7 +261,7 @@ ax1.set_xticklabels(doy,rotation = 90,fontsize = 8)
 ax1.set_xlabel('DOY', fontsize = 10)
 ax1.set_ylabel('<NDVI>', fontsize = 10)
 ax1.set_ylim([0,1])
-period_col = 'g'
+period_col = '#008800'
 zone = ax1.axvspan(days[dstart], days[dend], alpha=0.2, color = period_col)
 changezone = ax1.axhspan(0, 0.02, alpha=0.1, color = 'k')
 zonetext = ax1.text(days[dstart]+ 0.5, 0.97, "k-means period", fontsize = 10, color = period_col)
@@ -354,13 +355,16 @@ for i in range(1,slim):
     except:
         pass
 
+ymax = ax3.get_ylim()[1]
+print("ymax",ymax)
+
 for x in range(nclass):
     for y,(k,v) in enumerate(zip(key[x],val[x])):
         ax3.text(x + 0.15, 100*y, "%s %d"%(code2rpg[int(k)],v) , fontsize = 8)
     for y,(k,v) in enumerate(zip(soilkey[x],soilval[x])):
         ax3.text(x + 0.15, 100*y + 600, "%s %d"%(k,v) , fontsize = 8)
                 
-
+    
 
 
 
@@ -574,12 +578,14 @@ def onclick(event):
                     except:
                         raise
 
+                ymax = ax3.get_ylim()[1]
+                dymax = ymax/15.0
 
                 for x in range(nclass):
                     for y,(k,v) in enumerate(zip(key[x],val[x])):
-                        ax3.text(x + 0.15, 100*y, "%s %d"%(code2rpg[int(k)],v) , fontsize = 8)
+                        ax3.text(x + 0.15, dymax*y, "%s %d"%(code2rpg[int(k)],v) , fontsize = 8)
                     for y,(k,v) in enumerate(zip(soilkey[x],soilval[x])):
-                        ax3.text(x + 0.15, 100*y + 600, "%s %d"%(k,v) , fontsize = 8)
+                        ax3.text(x + 0.15, dymax*y + ymax/1.5, "%s %d"%(k,v) , fontsize = 8)
                 
 
 
