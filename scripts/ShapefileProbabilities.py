@@ -22,6 +22,7 @@ subclasses = param.subclasses
 groupmap1   = param.groupmap1 # Precise legend
 groupmap2   = param.groupmap2 # Large Legend
 groupmap3   = param.groupmap3 # Seasonal Legend
+groupmap4   = param.groupmap4 # Classification Legend
 
 #####################
 if(False):
@@ -71,14 +72,12 @@ def ExportMatrix(name,year1,year2,layer,groupmap):
         if groupmap[x] not in sc:
             sc.append(groupmap[x])
 
-    sc.append("OTH")
+    if "OTH" not in sc:
+        sc.append("OTH")
+
     Nc = len(sc)
     print "Subclasses common between the two years."
     print sc
-    legendfile =  open("Legend-%d-%d-%s"%(year1,year2,name), 'wb')
-    pickle.dump(sc,legendfile)
-    legendfile.close()
-    return
      
     # Prefill Overlap Dictionary #
     overdic = {}
@@ -135,8 +134,10 @@ def ExportMatrix(name,year1,year2,layer,groupmap):
     InvPro = 100.0*sur/pi[None,:]
     CondPro = 100.0*sur/pj[:,None]
  
+    npsc = np.array(sc, dtype='<U3')
+
     # Export to file #
-    np.savez("StatStructure-%d-%d-%s"%(year1,year2,name), parcels=mat, surface=sur,condproba=CondPro,invproba=InvPro)
+    np.savez("StatStructure-%d-%d-%s"%(year1,year2,name), legend = npsc, groupmap = groupmap, parcels=mat, surface=sur,condproba=CondPro,invproba=InvPro)
 
     matList = [mat,sur,CondPro,InvPro]
     #colormapList = ["rainbow","rainbow","ocean"] 
@@ -204,17 +205,22 @@ Syntax:
       # Export matrix with large gathering
       log.msg("Export matrix with large gathering")
       ExportMatrix("Season-Filtered",year1,year2,layer,groupmap3)
-      
+     
+      # Export matrix with classif gathering
+      log.msg("Export matrix with classif gathering")
+      ExportMatrix("Classif-Filtered",year1,year2,layer,groupmap4)
+
       file1 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Precise-Filtered") 
       file2 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Large-Filtered") 
       file3 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Season-Filtered") 
+      file4 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Classif-Filtered") 
       fileout = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Filtered") 
       
-      os.system("pdfunite %s %s %s %s"%(file1,file2,file3,fileout))
+      #os.system("pdfunite %s %s %s %s"%(file1,file2,file3,fileout))
 
     else:
         statlist = args.inputfile
-	legendlist = ["Legend"+x[13:-4] for x in statlist]
+	legendlist = ["StatStructure"+x[13:-4] for x in statlist]
         yearlist = [int(x) for x in args.several]
         ycouplelist = [[x,x+1] for x in yearlist]
 
@@ -222,7 +228,8 @@ Syntax:
         AllLegend = []
         AllName = []
         for legendfile in legendlist:
-	    legend=pickle.load(open(legendfile, 'rb'))
+            data = np.load(legendfile)
+	    legend=str(data['legend'])
 	    AllLegend.append(legend)
 	    AllName.append(legendfile[13:])
 

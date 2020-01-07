@@ -184,9 +184,9 @@ def getSoilStat(p,X,Y,soilClasses,npprim):
 
 
 # Main #
-profilesName= sys.argv[1]
-parcelshapefileName = sys.argv[2]
-soilshapefileName = sys.argv[3]
+profilesName= sys.argv[1]                              # Already extracted profiles dataframe that gonna be updated (piclke dataframe)
+parcelshapefileName = sys.argv[2]                      # Reference data raster (tif)
+soilshapefileName = sys.argv[3]                        # Soil (tif)
 newprofilesName = updatename(profilesName,"soil")
 
 log.msg("Load profiles")
@@ -208,7 +208,7 @@ log.msg(soilClasses)
 log.msg("Numpyze parcel raster (it might take a while)")
 fieldList = ["I17"]
 #X, Y, npparcels, parcelsList, parcelsdf = PrepareDataFrame(parcelshapefileName, fieldList, verbose = False,nmin = 1000,nmax = 1020)
-X, Y, npparcels, parcelsList, parcelsdf = PrepareDataFrame(parcelshapefileName, fieldList, verbose = False)
+X, Y, npparcels, parcelsList, parcelsdf = PrepareDataFrame(parcelshapefileName, fieldList, verbose = True)
 
 # Add relevant colums to profiles df
 

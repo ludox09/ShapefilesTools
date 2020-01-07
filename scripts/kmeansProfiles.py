@@ -2,6 +2,10 @@
 #    Python 2.7   #
 # Ludo 2019-10-24 #
 
+"""
+Plot kmeams
+"""
+
 import os,sys
 
 from datetime import datetime
@@ -70,7 +74,7 @@ except:
 
 # Manage dates
 dates = np.loadtxt(datefile)
-locale.setlocale(locale.LC_TIME, "en_US")
+#locale.setlocale(locale.lc_time, "en_us")
 dt  = [datetime.strptime(str(int(d)), '%Y%m%d') for d in dates]
 doy = [d.strftime('%d-%b') for d in dt]
 days = np.array([(d - dt[0]).days for d in dt])
@@ -110,11 +114,6 @@ MeanCol = [s for s in StatsCol if "mean_ndvi" in s]
 StdvCol = [s for s in StatsCol if "stdv_ndvi" in s]
 SoilCol = [s for s in StatsCol if "soil" in s]
 [par,c1,c2,d1,d2,npix] = TableCol
-
-# log
-#log.msg("KMeans computed for the class %s = %s between the %s and the %s"%(c2,tclass2,doy[dstart],doy[dend]))
-
-# Filter given class
 
 # Select specific time period
 MeanColPeriod = MeanCol[dstart:dend]

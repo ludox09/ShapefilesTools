@@ -377,11 +377,47 @@ def RemovePolygons(inputfile, removefile):
           if fid not in removeid:
             out_layer.CreateFeature(f)
  
-     # print ""       
-     # layer.ResetReading() 
-     # for f in layer:
-     #   fid = f.GetFID()
-     #   print "[AFT]",fid,f["ID"],f["C17"],f["S17"]
+
+def FilterPolygons(inputfile, filterParameters):
+    """
+    Filter feature in shapefile
+    parameter -rm:
+    - if -rm  a.txt: remove fid contain in file
+    - if -rm tag: Remove features such that the field OK is equal to 0.0
+    """
+    field = filterParameters[0]
+    keepClasse = [int(x) for x in filterParameters[1:]]
+
+    #print "Inputfile:",inputfile,
+    #print "Field:",field
+    #print "Keep classes: ", keepClasse
+
+    outputfile = inputfile[:-4] + "_FilteredClasses" + inputfile[-4:] 
+    outname = inputfile[:-4].split("/")[-1] + "_FilteredClasses"
+
+    driver = ogr.GetDriverByName('ESRI Shapefile')
+    datasource = driver.Open(inputfile, 1)
+    dataout    = driver.CreateDataSource(outputfile) 
+    if datasource is None:
+        log.msg("Could not open file","ERROR")
+        sys.exit(1)
+  
+    # get the data layer
+    layer = datasource.GetLayer()
+    proj =layer.GetSpatialRef()
+    out_layer = dataout.CreateLayer(outname,proj, ogr.wkbPolygon )
+    layer_defn = layer.GetLayerDefn()
+
+    # Add Field in output shapefile #  
+    for i in range(layer_defn.GetFieldCount()):
+        out_layer.CreateField(layer_defn.GetFieldDefn(i) )
+
+
+    layer.ResetReading() 
+    for f in layer:
+        fid = f.GetFID()
+        if f[field] in keepClasse:
+            out_layer.CreateFeature(f)
         
 def Execute(inputfile, param):
     """ Calculate shapefile statistic """
@@ -483,6 +519,7 @@ Syntax:
 """)
     parser.add_argument("-un", "--union", help="Create the geometric union between two shapefiles.")
     parser.add_argument("-rm", "--remove", help="Remove polygons with id contain in given file.")
+    parser.add_argument("-fi", "--filter", nargs="+",help="Only keep listed classes polygons.")
     parser.add_argument("-ex", "--execute", nargs="+",help="Execute hardcoded algorithm. See source code")
     args=parser.parse_args()
  
@@ -492,9 +529,10 @@ Syntax:
         args.area==None and
         args.delete==None and
         args.statistics==None and
+        args.filter==None and
         args.union==None):
       # Handle help message because mutual exclusive option required it.
-      print "usage: ShapefileEditor [-h] [-re] namelist [-cr] namelist [-ar] column_name [-de] field_name [-st] column_name -[un] output_shapefile [-rm] remove.csv [-ex] parameters [-in] SHAPEFILES"
+      print "usage: ShapefileEditor [-h] [-re] namelist [-cr] namelist [-ar] column_name [-de] field_name [-st] column_name -[un] output_shapefile [-rm] remove.csv [-ex] parameters [-fi] parameters [-in] SHAPEFILES"
       print "ShapefileEditor: error: too few arguments"
       quit()
 
@@ -523,6 +561,10 @@ Syntax:
 
     if args.inputfile!=None and args.remove!=None:
       RemovePolygons(args.inputfile[0],args.remove)
+      quit()
+
+    if args.inputfile!=None and args.filter!=None:
+      FilterPolygons(args.inputfile[0],args.filter)
       quit()
 
     if args.inputfile!=None and args.union!=None:

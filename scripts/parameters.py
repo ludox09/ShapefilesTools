@@ -227,6 +227,52 @@ groupmap3 = {
 'TR6':'GRA',
 'TR5':'GRA'}
 
+# Classif gathering
+groupmap4 = {
+'CZH':'CZH',
+'BTH':'BTH',
+'BDH':'BDH',
+'ORH':'OTH',
+'TTH':'OTH',
+'AVH':'OTH',
+'ORP':'OTH',
+'FVL':'OTH',
+'PHI':'OTH',
+'LIH':'OTH',
+'TRN':'TRN',
+'SOG':'SOG',
+'MIS':'MIS',
+'MIE':'MIE',
+'MID':'OTH',
+'SOJ':'SOJ',
+'SRS':'OTH',
+'PCH':'OTH',
+'LEC':'OTH',
+'HAR':'OTH',
+'LIP':'OTH',
+'BTN':'OTH',
+'AIL':'OTH',
+'J6S':'OTH',
+'J5M':'OTH',
+'J6P':'OTH',
+'PPH':'OTH',
+'PRL':'OTH',
+'PTR':'OTH',
+'RGA':'OTH',
+'FET':'OTH',
+'DTY':'OTH',
+'LUZ':'OTH',
+'LU8':'OTH',
+'LU7':'OTH',
+'LU6':'OTH',
+'LU5':'OTH',
+'TR8':'OTH',
+'TR7':'OTH',
+'TRE':'OTH',
+'TR6':'OTH',
+'TR5':'OTH'}
+
+
 # All class RPG
 rpgClasses = [
 "AVH",

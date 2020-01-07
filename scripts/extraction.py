@@ -16,6 +16,7 @@ log = infolog.infolog()
 epsilon = 1e-10
 rasterize_com = "otbcli_Rasterization -in %s -out %s -im %s -mode attribute -mode.attribute.field %s -ram %d"
 concatenation_com = "otbcli_ConcatenateImages -il %s -out %s -ram %d"
+primlist = ["NDVI","NDWI_SWIR","NDWI_GREEN","BRIGHTNESS"] 
 
 #class ProfileStructure(object):
 #    def __init__(self, code, npixels, primitive, mean, std):
@@ -172,7 +173,7 @@ def npprimitive(img,t,prim):
         NDVI = (B8 - B4)/(B4 + B8 + epsilon)
         return NDVI
 
-    if prim == "NDWI SWIR":
+    if prim == "NDWI_SWIR":
         B8Apos = 10*t + 7 + 1
         B11pos = 10*t + 8 + 1
         B8Aimg = img.GetRasterBand(B8Apos)
@@ -182,7 +183,7 @@ def npprimitive(img,t,prim):
         NDWIS = (B8A - B11)/(B8A + B11 + epsilon)
         return NDWIS
 
-    if prim == "NDWI GREEN":
+    if prim == "NDWI_GREEN":
         B3pos = 10*t + 1 + 1
         B8pos = 10*t + 6 + 1
         B3img = img.GetRasterBand(B3pos)
@@ -203,13 +204,6 @@ def npprimitive(img,t,prim):
         brightness = np.sqrt(brightness)
         return brightness
 
-    if prim == "SOIL":
-        SoilImg = img.GetRasterBand(1)
-        Val = np.array(SoilImg.ReadAsArray()).astype(np.float)
-        return Val
-
- 
-
 def getPrimStat(p,X,Y,npprim):
         #mask = np.equal(npparcels,p)
         #masked = np.ma.array(npprim,mask = mask) 
@@ -227,21 +221,34 @@ def getPrimStat(p,X,Y,npprim):
 # Path name of the classifcation raster
 rastershapefile = sys.argv[1]
 stackfile = sys.argv[2]
+prim = sys.argv[3]
+try:
+    Qrasterize = sys.argv[4] # Creat halt if not defined
+    if Qrasterize == r
+        Qrasterize = True
+    else:
+        Qrasterize = True
+
+if(prim not in primlist):
+    log.msg("Primitive does not exist. Should be chosen in:",'ERROR')
+    log.msg(primlist,'ERROR')
+    quit()
 
 fieldList = ["I17","CODE17","CODE18","DERA18","DERB18"]
 #fieldList = ["CODE17"]
 
-tile = stackfile[22:27]
+#tile = stackfile[22:27]
+tile = stackfile[3:8]
+
 try:
 
     #tile = stackfile[3:8]
-    rasterized_name = rastershapefile.split("/")[-1].split(".")[0] + "_Rasterized_%s_"%(tile) + stackfile.split("_")[-1]
+    rasterized_name = rastershapefile.split("/")[-1].split(".")[0] + "_Rasterized_" + stackfile.split("_")[-1]
     log.msg("Rasterize Output File: %s"%(rasterized_name))
     names = []
     for fi in fieldList:
-        name_i = rastershapefile.split("/")[-1].split(".")[0] + "_%s_%s_"%(fi,tile) + stackfile.split("_")[-1]
+        name_i = rastershapefile.split("/")[-1].split(".")[0] + "_%s_"%(fi) + stackfile.split("_")[-1]
         names.append(name_i)
-        Qrasterize = sys.argv[3] # Creat halt if not defined
         log.msg("    - Rasterize field %s"%(fi))
         os.system(rasterize_com%(rastershapefile,name_i,stackfile,fi,20000))
 
@@ -252,12 +259,11 @@ try:
     com = concatenation_com%(namesList,rasterized_name,20000)
     os.system(com)
 except:
+    log.msg("Rasterization already performed. Continue extraction")
     pass
 
 #rasterized_name = "RPG201718-topo_rm-geotest_ero50cm-UnionSAGA-up-solo-sup1ha-ero195cm-sup1ha-scop_Rasterized_31TCJ_31TCJ.tif"
 print rasterized_name
-
-quit()
 
 #npparcels, parcels_list, parcels_count = numpyrize(rasterized_name, 1, nmin = 1000, nmax=1005, verbose=True)
 #npclasses, classes_list, classes_count = numpyrize(rasterized_name, 2, verbose=True)
@@ -265,9 +271,7 @@ quit()
 
 
 #npparcels, parcelsList, profilesdf = PrepareDataFrame(rasterized_name, fieldList, nmin = 25000, nmax = 25010, verbose=True)
-X, Y, npparcels, parcelsList, profilesdf = PrepareDataFrame(rasterized_name, fieldList, verbose=True)
 
-print profilesdf
 
 
 # Prepare Image raster reading
@@ -275,17 +279,17 @@ log.msg("Open Image Stack %s (it might take a while)"%(stackfile))
 img = gdal.Open(stackfile)
 NFeatures = img.RasterCount
 NDates = NFeatures/10
-#prim = "NDVI"
-prim = "SOIL"
-NDates = 1
+
 log.msg(("- Number of band",NFeatures))
 log.msg(("- Number of dates",NDates))
 log.msg(("- Primitives",prim))
 
-profiles = {}
+# Get Raster information and masking
+X, Y, npparcels, parcelsList, profilesdf = PrepareDataFrame(rasterized_name, fieldList, verbose=True)
 
 tmin = 0
 tmax = NDates
+profiles = {}
 for t in range(tmin,tmax):
     log.msg(" - Calculate %s at date %i"%(prim,t))
     # Add relevant colums to profiles df
