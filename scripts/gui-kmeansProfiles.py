@@ -509,9 +509,9 @@ class ProfileWindow(QtWidgets.QWidget):
         ax3.cla()
 
         if tclass1 == "None":
-            ax1.set_title("k-meams of the class %s with %d clusters (%s %s)"%(tclass2,nclass,"2018","T31TJC"))
+            ax1.set_title("k-means of the class %s with %d clusters (%s %s)"%(tclass2,nclass,"2018","T31TJC"))
         else:
-            ax1.set_title("k-meams of the classes %s/%s with %d clusters (%s %s)"%(tclass1,tclass2,nclass,"2018","T31TJC"))
+            ax1.set_title("k-means of the classes %s/%s with %d clusters (%s %s)"%(tclass1,tclass2,nclass,"2018","T31TJC"))
 
         ax1.set_xticks(days)
         ax1.set_xticklabels(self.doy,rotation = 90,fontsize = 8)
