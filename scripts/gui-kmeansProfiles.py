@@ -4,7 +4,8 @@
 #       Ludovic Arnaud - CesBIO (2019)      #
 #           larnaudl@cesbio.cnes.fr         #
 #           Creation:    20/02/19           #
-#           Last update: 22/02/19           #
+#                update: 22/02/19           #
+#           Last update: 22/01/20           #
 #############################################
 
 from __future__ import unicode_literals
@@ -211,7 +212,7 @@ class ProfileWindow(QtWidgets.QWidget):
         self.IsSync = IsSync
         l = QtWidgets.QVBoxLayout(self)
         self.col = QColor(colString)
-
+        self.fileName = ""
         # Label
         self.label = QLabel("No database loaded yet")
         l.addWidget(self.label)
@@ -224,9 +225,10 @@ class ProfileWindow(QtWidgets.QWidget):
         #load.resize(40,30)
         l.addWidget(load)
 
-        self.labelKClassNumber = QLabel("Kmeans classw Number")
+        self.labelKClassNumber = QLabel("Kmeans classe Number")
         l.addWidget(self.labelKClassNumber)
         self.KClassNumber= QComboBox()
+        self.KClassNumber.addItem("1")       
         self.KClassNumber.addItem("2")       
         self.KClassNumber.addItem("3")       
         self.KClassNumber.addItem("4")       
@@ -272,8 +274,17 @@ class ProfileWindow(QtWidgets.QWidget):
 
         self.cprint("Class 1: %s"%(self.tclass1))
         self.cprint("Class 2: %s"%(self.tclass2))
+        print("DEBUG ",self.fileName)
         try:
             self.PlotUpdate()
+            # save param
+            f = open('.save','w')
+            f.write(self.fileName+"\n")
+            f.write(str(self.nclass)+"\n")
+            f.write(str(self.tclass1)+"\n")
+            f.write(str(self.tclass2)+"\n")
+            f.close() 
+
         except:
             self.cprint("Data Error - ignore change")
             #aw.Up         
@@ -330,66 +341,86 @@ class ProfileWindow(QtWidgets.QWidget):
     #    table.setCurrentCell(0,0)                   
 
  
-    def openFileNameDialog(self,fileName = None):
+    def openFileNameDialog(self, fileName = None, nclass = 1, tclass1 = "None" , tclass2 = "CZH"):
         if fileName == None:
             options = QFileDialog.Options()
             options |= QFileDialog.DontUseNativeDialog
             #self.fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","qlite3 database (*.sqlite);;All Files (*)", options=options)
             self.fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","pickle dataframe (*.pkl);;All Files (*)", options=options)
+            self.selectionchange(nclass)            
+
         else:
             self.fileName = fileName
 
-        if self.fileName:
+        try:
+            # Manage dates
+            dates = np.loadtxt("/datalocal1/home/arnaudl/ColzaDigital/kmeans/S1-S2_2018_ColzaDigital.txt")
+            print(dates)
+            #locale.setlocale(locale.lc_time, "en_us")
+            dt  = [datetime.strptime(str(int(d)), '%Y%m%d') for d in dates]
+            self.doy = [d.strftime('%d-%b') for d in dt]
+            self.days = np.array([(d - dt[0]).days for d in dt])
+            self.dstart = 0
+            self.dend = len(self.days) - 1
+            self.cprint("Dates loaded")
+ 
+            self.nclass = nclass 
+            self.tclass1 = tclass1
+            self.tclass2 = tclass2
+ 
+            #self.window.console.text.insertPlainText(">Test\n")
+            #self.bandPatern = "(b8_%d - b4_%d)/(b8_%d + b4_%d + 0.00000001)"
+            self.profiles = pd.read_pickle(self.fileName)
+            self.columns = list(self.profiles.columns)               
+            self.ListClassesCol1  = self.columns[1:2] 
+            self.ListClassesCol2 = self.columns[2:3] 
+            self.ListClasses1 = np.unique(self.profiles[self.ListClassesCol1].values)
+            self.ListClasses2 = np.unique(self.profiles[self.ListClassesCol2].values)
+            self.NameClasses1 = [code2rpg[x] for x in self.ListClasses1]
+            self.NameClasses2 = [code2rpg[x] for x in self.ListClasses2]
+ 
+            idx1 = 0
+            idx2 = 0
+            aw.ProfileWindow1.ClassBefore.addItem("None")
+            for i,x in enumerate(self.NameClasses1):
+                aw.ProfileWindow1.ClassBefore.addItem(x)
+                if x == tclass1:
+                    idx1 = i
+ 
+            for i,x in enumerate(self.NameClasses2):
+                aw.ProfileWindow1.ClassAfter.addItem(x)
+                if x == tclass2:
+                    idx2 = i
+ 
+         
+            # Set initial value
+            aw.ProfileWindow1.KClassNumber.setCurrentIndex(self.nclass - 1)
+            aw.ProfileWindow1.ClassBefore.setCurrentIndex(idx1)
+            aw.ProfileWindow1.ClassAfter.setCurrentIndex(idx2)
+ 
+            self.cprint("Profiles loaded")
             try:
-                # Manage dates
-
-                dates = np.loadtxt("/datalocal1/home/arnaudl/ColzaDigital/kmeans/S1-S2_2018_ColzaDigital.txt")
-                print(dates)
-                #locale.setlocale(locale.lc_time, "en_us")
-                dt  = [datetime.strptime(str(int(d)), '%Y%m%d') for d in dates]
-                self.doy = [d.strftime('%d-%b') for d in dt]
-                self.days = np.array([(d - dt[0]).days for d in dt])
-                self.dstart = 0
-                self.dend = len(self.days) - 1
-                self.cprint("Dates loaded")
-
-                self.nclass = 4
-                self.tclass1 = "CZH"
-                self.tclass2 = "CZH"
-
-                #self.window.console.text.insertPlainText(">Test\n")
-                #self.bandPatern = "(b8_%d - b4_%d)/(b8_%d + b4_%d + 0.00000001)"
-                self.profiles = pd.read_pickle(self.fileName)
-                self.columns = list(self.profiles.columns)               
-                self.ListClassesCol1  = self.columns[1:2] 
-                self.ListClassesCol2 = self.columns[2:3] 
-                self.ListClasses1 = np.unique(self.profiles[self.ListClassesCol1].values)
-                self.ListClasses2 = np.unique(self.profiles[self.ListClassesCol2].values)
-                self.NameClasses1 = [code2rpg[x] for x in self.ListClasses1]
-                self.NameClasses2 = [code2rpg[x] for x in self.ListClasses2]
-
-                aw.ProfileWindow1.ClassBefore.addItem("None")
-                for x in self.NameClasses1:
-                    aw.ProfileWindow1.ClassBefore.addItem(x)
-
-                for x in self.NameClasses2:
-                    aw.ProfileWindow1.ClassAfter.addItem(x)
-
-                self.cprint("Profiles loaded")
                 self.PlotUpdate()
-                #self.window.screen.ax2.cla()
-                #self.window.screen.ax2.plot(t,s2,'g')
-                #self.window.screen.fig.canvas.draw_idle()
-                #self.UpdatePrimitive()
-                #Nbr,self.Class,self.Parcel = self.summaryDB(self.fileName)
-                #self.CreateTable(self.Class,self.ClassTable,["Code","Name"])
-                #self.CreateTable(self.Parcel,self.ParcelTable,["Parcel ID","Code"])
-                #self.BandsList.setVisible(True)
+                print("self.PlotUpdate")
             except:
+                self.cprint("Data Error - ignore change")
+                print("Data Error - ignore change")
                 raise
-                self.label.setText("ERROR: database file is invalid")
+                #pass
+ 
+            #self.window.screen.ax2.cla()
+            #self.window.screen.ax2.plot(t,s2,'g')
+            #self.window.screen.fig.canvas.draw_idle()
+            #self.UpdatePrimitive()
+            #Nbr,self.Class,self.Parcel = self.summaryDB(self.fileName)
+            #self.CreateTable(self.Class,self.ClassTable,["Code","Name"])
+            #self.CreateTable(self.Parcel,self.ParcelTable,["Parcel ID","Code"])
+            #self.BandsList.setVisible(True)
+        except:
+            raise
+            self.label.setText("ERROR: database file is invalid")
 
-    def PlotUpdate(self):
+    def PlotUpdate(self,ax1save = None):
         # get class local variables 
         days = self.days
         dstart = self.dstart
@@ -398,12 +429,24 @@ class ProfileWindow(QtWidgets.QWidget):
         nclass = self.nclass
         tclass1 = self.tclass1
         tclass2 = self.tclass2
+        prim =  "ndvi"
+        prim =  "ndwi_swir"
 
         # construc dataframe selection colums
         TableCol = self.columns[:6]  
         StatsCol = self.columns[6:]
-        MeanCol = [s for s in StatsCol if "mean_ndvi" in s]
-        StdvCol = [s for s in StatsCol if "stdv_ndvi" in s]
+
+        prim =""
+        for x in StatsCol[0].split("_")[1:-1]:
+            prim = prim + x + "_"
+        prim = prim[:-1]
+
+        #print("--------",prim)
+ 
+
+        #print("DEBUG: Primitive:",StatsCol[0][5:9])
+        MeanCol = [s for s in StatsCol if "mean_" in s]
+        StdvCol = [s for s in StatsCol if "stdv_" in s]
         SoilCol = [s for s in StatsCol if "soil" in s]
         [par,c1,c2,d1,d2,npix] = TableCol
         
@@ -509,19 +552,23 @@ class ProfileWindow(QtWidgets.QWidget):
         ax3.cla()
 
         if tclass1 == "None":
-            ax1.set_title("k-means of the class %s with %d clusters (%s %s)"%(tclass2,nclass,"2018","T31TJC"))
+            #ax1.set_title("k-means of the class %s with %d clusters (%s %s)"%(tclass2,nclass,"2018","T31TJC"))
+            ax1.set_title("%s profiles for %s clustered in %d k-means classes"%(prim.upper(),tclass2,nclass))
         else:
-            ax1.set_title("k-means of the classes %s/%s with %d clusters (%s %s)"%(tclass1,tclass2,nclass,"2018","T31TJC"))
+            #ax1.set_title("k-means of the classes %s/%s with %d clusters (%s %s)"%(tclass1,tclass2,nclass,"2018","T31TJC"))
+            ax1.set_title("%s profiles for %s clustered in %d k-means classes"%(prim.upper(),tclass1,tclass2))
 
         ax1.set_xticks(days)
         ax1.set_xticklabels(self.doy,rotation = 90,fontsize = 8)
         ax1.set_ylim([0,1])
+        if("ndwi" in prim):
+            ax1.set_ylim([-0.5,0.8])
         ax1.set_xlabel('DOY', fontsize = 10)
-        ax1.set_ylabel('<NDVI>', fontsize = 10)
+        ax1.set_ylabel('<%s>'%(prim.upper()), fontsize = 10)
 
         ax2.set_title("Profiles distributions on the %s"%(self.doy[0]))
-        ax2.set_xlabel('<NDVI>', fontsize = 10)
-        ax2.set_xlabel('P(<NDVI>)', fontsize = 10)
+        ax2.set_xlabel('<%s>'%(prim.upper()), fontsize = 10)
+        ax2.set_xlabel('P(<%s>)'%(prim.upper()), fontsize = 10)
         
         ax3.set_xticks(range(nclass))
         ax3.set_xlabel('Previous year class', fontsize = 10)
@@ -531,6 +578,7 @@ class ProfileWindow(QtWidgets.QWidget):
         period_col = 'g'
         self.zone = ax1.axvspan(days[dstart], days[dend], alpha=0.2, color = period_col)
         self.changezone = ax1.axhspan(0, 0.02, alpha=0.1, color = 'k')
+        self.savezone = ax1.axhspan(0.98, 1.0, alpha=0.1, color = 'k')
         self.zonetext = ax1.text(days[dstart]+ 0.5, 0.97, "k-means period", fontsize = 10, color = period_col)
 
 
@@ -555,7 +603,7 @@ class ProfileWindow(QtWidgets.QWidget):
 
         # Plot profile distributions on ax2
         for l in range(nclass):
-            data = self.KmeansMean[self.KmeansMean['kmeans'] == l ]["mean_ndvi_%d"%(dstart)].values
+            data = self.KmeansMean[self.KmeansMean['kmeans'] == l ]["mean_%s_%d"%(prim,dstart)].values
             col = self.meanList[l][0].get_color()
             colList.append(col)
             ax2.hist(data, nbin, alpha=0.20, color = col)
@@ -582,7 +630,6 @@ class ProfileWindow(QtWidgets.QWidget):
                 ax3.text(x + 0.15, 100*y, "%s %d"%(code2rpg[int(k)],v) , fontsize = 8)
             for y,(k,v) in enumerate(zip(soilkey[x],soilval[x])):
                 ax3.text(x + 0.15, 100*y + 600, "%s %d"%(k,v) , fontsize = 8)
-                        
         fig.canvas.draw_idle()
 
 
@@ -607,8 +654,13 @@ def onclick(event):
     nclass = aw.ProfileWindow1.nclass
     KmeansMean = aw.ProfileWindow1.KmeansMean
     meanList = aw.ProfileWindow1.meanList
-  
- 
+    StatsCol = aw.ProfileWindow1.columns[6:]
+
+    prim =""
+    for x in StatsCol[0].split("_")[1:-1]:
+        prim = prim + x + "_"
+    prim = prim[:-1]
+
 
     # Even
     if event.inaxes == ax1:
@@ -617,7 +669,13 @@ def onclick(event):
                 aw.ProfileWindow1.dstart,aw.ProfileWindow1.dend = updateZone(zone,zonetext,event,days)
                 aw.ProfileWindow1.PlotUpdate()
             except:
-                raise
+                 raise
+
+        elif(0.98 < event.ydata and event.ydata < 1.0):
+            if(event.xdata < (days[dend] - days[dstart])/2):
+                print("SAVE")
+            else:
+                print("ERAZE")
 
         else:
             print("ICI")
@@ -629,7 +687,7 @@ def onclick(event):
                 ax2.cla()
                 ax2.set_title("Profiles distributions on the %s"%(doy[x0]))
                 for l in range(nclass):
-                    data = KmeansMean[KmeansMean['kmeans'] == l ]["mean_ndvi_%d"%(x0)].values
+                    data = KmeansMean[KmeansMean['kmeans'] == l ]["mean_%s_%d"%(prim,x0)].values
                     col = meanList[l][0].get_color()
                     ax2.hist(data, nbin, alpha=0.20, color = col)
                     ax2.axvline(np.mean(data), ymin=0, ymax=100, color  = col, alpha = 0.5, lw = 0.5)
@@ -706,13 +764,7 @@ def updateZone(zone,zonetext,event,days):
     zone.set_xy(ndarray)
     return dstart,dend 
 
-
-
-
-
-####i MAIN #######################################################################
-
- 
+#### MAIN #######################################################################
         
 qApp = QtWidgets.QApplication(sys.argv)
 
@@ -721,15 +773,19 @@ aw.setWindowTitle("%s" % progname)
 aw.screen.fig.canvas.mpl_connect('button_press_event',onclick)
 aw.show()
 try:
-   #f = open('.save')
-   #nclass = int(f.readline())
-   #FileName = str(f.readline()).strip()
-   #f.close()
-   FileName =  "Profiles_NDVI_31TCJ_0_64_soil.pkl"
-   aw.ProfileWindow1.openFileNameDialog(FileName)
+   f = open('.save')
+   fileName  = str(f.readline()).strip()
+   nclass = int(f.readline())
+   tclass1 = str(f.readline()).strip() 
+   tclass2 = str(f.readline()).strip()
+   f.close()
+   print(fileName)
+   print(nclass)
+   print(tclass1)
+   print(tclass2)
+   aw.ProfileWindow1.openFileNameDialog(fileName,nclass,tclass1,tclass2)
 except:
-   raise
+   ##raise
    aw.ProfileWindow1.openFileNameDialog()
-
 
 sys.exit(qApp.exec_())
