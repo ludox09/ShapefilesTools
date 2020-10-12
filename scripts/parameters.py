@@ -45,7 +45,7 @@ subclasses = [
 'TR6',
 'TR5']
 
-# First gathering #
+# First gathering  = Filtered (find an other name)#
 groupmap1 = {
 'CZH':'CZH',
 'BTH':'BTH',
@@ -88,8 +88,9 @@ groupmap1 = {
 'TR7':'TRX',
 'TRE':'TRX',
 'TR6':'TRX',
-'TR5':'TR5'}
+'TR5':'TRX'}
 
+# Second gathering  = Identity operation just for consistancy#
 groupmap1bis = {
 'CZH':'CZH',
 'BTH':'BTH',
@@ -136,7 +137,7 @@ groupmap1bis = {
 
 
 
-# More general gathering
+# More general gathering (Large)
 groupmap2 = {
 'CZH':'CZH',
 'BTH':'BLE',
@@ -668,5 +669,3 @@ derobesClasses = [
 "DVN",
 "DVS",
 "DXF"]
-
-

@@ -1,8 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 """ Ludo 08/2019 """
 
-import ogr, os, sys
+from __future__ import print_function
+import os, sys, glob
 import string
 import argparse
 import json
@@ -10,6 +11,15 @@ import ast
 import numpy as np
 import parameters as param
 import infolog
+import pickle
+import importlib
+
+from osgeo import ogr, osr
+try:
+    from osgeo import gdal
+except ImportError:
+    import gdal
+
 
 log = infolog.infolog()
 #log.set_level("WARNING")
@@ -34,7 +44,6 @@ type2code = {"Int":ogr.OFTInteger,
              "Real":ogr.OFTReal,
              #"Int64":ogr.OFTInteger64,
              "String":ogr.OFTString}
-
 
 
 def cloneFieldDefn(src_fd):
@@ -81,14 +90,14 @@ def DisplayField(inputfiles):
             swidth = swidth + "%s%s"%(fieldWidth,tab)
             sprec = sprec + "%d%s"%(fieldPrecision,tab)
            
-        print line
-        print sfield
-        print line
-        print stype
-        print swidth
-        print sprec
-        print line
-        print ""
+        print(line)
+        print(sfield)
+        print(line)
+        print(stype)
+        print(swidth)
+        print(sprec)
+        print(line)
+        print("")
        
    
           
@@ -106,7 +115,7 @@ def RenameField(inputfile, mappingstring):
  
     mapping = ast.literal_eval(mappingstring)
 
-    print ""
+    print("")
     types = [ogr.OFTInteger, ogr.OFTReal, ogr.OFTInteger, ogr.OFTInteger, ogr.OFTInteger, ogr.OFTInteger]
 
     layerDefn = layer.GetLayerDefn()
@@ -116,7 +125,7 @@ def RenameField(inputfile, mappingstring):
         fieldName = fdef.GetName()
         try:
           newname = mapping[fieldName]
-          print "%s becomes %s"%(fieldName,newname)
+          print("%s becomes %s"%(fieldName,newname))
         except:
           newname = fieldName
 
@@ -125,8 +134,8 @@ def RenameField(inputfile, mappingstring):
         fdef.SetType(vtype)
         layer.AlterFieldDefn(i, fdef, (ogr.ALTER_NAME_FLAG | ogr.ALTER_WIDTH_PRECISION_FLAG))
 
-    print ""
-    print "Fields after renaming"
+    print("")
+    print("Fields after renaming")
     DisplayField(inputfile)
  
  
@@ -176,7 +185,6 @@ def CreateField(inputfile, fieldlist):
     
         datasource = None
 
-
 def AddSurface(inputfile, column):
     """ Add Surface """
     driver = ogr.GetDriverByName('ESRI Shapefile')
@@ -199,13 +207,75 @@ def AddSurface(inputfile, column):
        
     for c,i in enumerate(layer):
         geom = i.GetGeometryRef()
-	try:
+        try:
             area = 1000.0*float(geom.GetArea())/1000.0 # convert m2 in ha
         except AttributeError:
             area = 0.0
         #layer.SetFeature(i)
         i.SetField(column, area)
         layer.SetFeature(i)
+
+    datasource = None
+
+def AdaptShapefile(inputfile, adapt):
+    """ Adapt shapefile """
+    driver = ogr.GetDriverByName('ESRI Shapefile')
+    datasource = driver.Open(inputfile, 1)
+
+    legend_file = adapt[0].split(".")[0]
+   
+    sys.path.insert(0,os.getcwd() )
+    try:
+        legend = importlib.import_module(legend_file)
+    except:
+        log.msg("Legend python file invalid","ERROR")
+        quit()
+
+    try:
+        mapping = ast.literal_eval(adapt[1])
+    except:
+        log.msg("-ad (-adapt) parameters is invalid","ERROR")  
+        quit()
+
+ 
+    if datasource is None:
+        log.msg("Could not open file","ERROR")
+        sys.exit(1)
+
+    # get the data layer
+    layer = datasource.GetLayer()
+    layer_defn = layer.GetLayerDefn()
+    
+    # Add all new field 
+    for m in mapping:
+        if(layer.GetLayerDefn().GetFieldIndex(mapping[m]) < 0):
+            log.msg("Create %s field"%(mapping[m]))
+            new_field = ogr.FieldDefn(mapping[m], ogr.OFTInteger)
+            new_field.SetWidth(3)
+            new_field.SetPrecision(0)
+            layer.CreateField(new_field)
+
+    log.msg("Convert old fields and fill new ones")
+    for c,f in enumerate(layer):
+        #geom = i.GetGeometryRef()
+        #try:
+        #    area = 1000.0*float(geom.GetArea())/1000.0 # convert m2 in ha
+        #except AttributeError:
+        #    area = 0.0
+        #layer.SetFeature(i)
+        for m in mapping:
+            if f[m] == None:
+                f.SetField(mapping[m], 0)
+            else:
+                try:
+                    # If field contain a string, mapping to int is applied (for RPG class in general)_
+                    f.SetField(mapping[m], legend.class2code[f[m]])
+                except:
+                    pass
+                    # If field contain numerical string, it is is convert to int (for Class field such as D1 and D2 in RPG)
+                    #f.SetField(mapping[m],legendd(f[m]))
+
+            layer.SetFeature(f)
 
     datasource = None
 
@@ -221,15 +291,214 @@ def DeleteField(inputfile, fields):
         sys.exit(1)
 
     for fi in fields:
-        resp = raw_input("Are you sure you want to delete the field %s (y or n) ?"%(fi))  
+        resp = input("Are you sure you want to delete the field %s (y or n) ?"%(fi))  
         if resp == 'y':
             # get the data layer
             layer = datasource.GetLayer()
             layer_defn = layer.GetLayerDefn()
-            print "Delete field %s"%(fi)
+            print("Delete field %s"%(fi))
             layer.DeleteField(layer_defn.GetFieldIndex(fi))
 
     datasource = None
+
+def GenerateLegend(inputfileList,arg):
+    driver = ogr.GetDriverByName('ESRI Shapefile')
+    try:
+        column = arg[0]
+        legend_file = arg[1]
+    except:
+        log.msg("The field and/or the file name are invalid","ERROR")
+        quit()
+    legend = []
+
+    lfile = open(legend_file, 'w+')
+    for inputfile in inputfileList:
+        datasource = driver.Open(inputfile, 1)
+
+        if datasource is None:
+            log.msg("Could not open file","ERROR")
+            sys.exit(1)
+
+        # get the data layer
+        layer = datasource.GetLayer()
+        layer_defn = layer.GetLayerDefn()
+        
+        # Construct subclass set #
+        for f in layer:
+            fi = f[column]
+            if fi not in legend:
+                legend.append(fi)
+        
+        log.msg("Adds %s in legend (legend contain %d classes)"%(inputfile.split("/")[-1],len(legend)))
+        print("#Adds %s in legend (legend contain %d classes)"%(inputfile.split("/")[-1],len(legend)),file=lfile)
+   
+
+    legend = sorted(legend)
+
+    class2code = {}
+    code2class = {}
+
+    n = 0
+    for c in legend:
+        n += 1
+        class2code[c] = int(n)
+        code2class[int(n)] = c
+
+    log.msg("The look-up table need to be manualy copy file %s"%(legend_file))
+    print("class2code=",class2code, file = lfile)
+    print("code2class=",code2class, file = lfile)
+    # Export on disk
+
+def GenStatField(inputfile, genstat):
+    """ Calculate shapefile statistic """
+ 
+    #classFilterType   = {"False":"All classes considered in the statistics","True":"Only selected classes considered in the statistics."}
+    #featureFilterType = {"False":"All polygons considered in the statistics","True":"Invalid polygon discarded from the statistics."}
+    #deleteType        = {"False":"All polygons kept in the input shapefile","True":"Invalid polygons removed from the input shapefile"}
+
+
+    #inlist = ["","False","False","False"]
+    #
+    #for i,x in enumerate(statistics):
+    #  inlist[i] = x
+    column = genstat[0]
+    try:
+        sortby = genstat[1] # col/area/item 
+    except:
+        sortby = "field"
+
+    if sortby not in ["field","polygon","area"]:
+        log.msg("""The "sortby" argument is invalid""","ERROR")
+        log.msg("Valid arguments: field, area or polygon","ERROR")
+        quit()
+
+    #print "*** Options chosen for the statistics ***"
+    ##log.msg("Year: %s"%year)
+    #log.msg(classFilterType[inlist[1]])
+    #log.msg(featureFilterType[inlist[2]]) 
+    #log.msg(deleteType[inlist[3]])
+    # 
+    #classFilter = eval(inlist[1])   #False(default) Stat on al class. True: Only selected class
+    #featureFilter = eval(inlist[2]) #False(default) Keep all feature. True: Filter invalid feature.
+    #delete = eval(inlist[3])        #False(default) True: Delete invalid feature.
+
+    driver = ogr.GetDriverByName('ESRI Shapefile')
+    datasource = driver.Open(inputfile, 1)
+
+    if datasource is None:
+        log.msg("Could not open file","ERROR")
+        sys.exit(1)
+
+    # get the data layer
+    layer = datasource.GetLayer()
+    layer_defn = layer.GetLayerDefn()
+    
+    # Construct subclass set #
+    print("Calculating statistics for %s field..."%(column))
+    stat = {}
+    arearecord = set([])
+    c = 0
+    for f in layer:
+        try:
+          fi = f[column]
+          try:
+              prop = f[genstat[2]]
+              cond = True
+          except:
+              cond = False
+          #if classFilter:
+          #  if fi not in subclasses: 
+          #    fi = "OTH"
+          #  else:
+          #    fi = groupmap[fi]
+        except ValueError:
+          log.msg("The field %s does not exist."%(column),"ERROR")
+          quit()
+        geom = f.GetGeometryRef()
+        try:
+            area   = float(geom.GetArea())
+            area100   = 0.0
+            area99    = 0.0
+            area98    = 0.0
+            area97    = 0.0
+            area96    = 0.0
+            area95    = 0.0
+            if prop==100: area100 = float(geom.GetArea())
+            if prop>=99:  area99 = float(geom.GetArea())
+            if prop>=98:  area98 = float(geom.GetArea())
+            if prop>=97:  area97 = float(geom.GetArea())
+            if prop>=96:  area96 = float(geom.GetArea())
+            if prop>=95:  area95 = float(geom.GetArea())
+        except:
+            area      = float(geom.GetArea())
+            area100   = 0.0
+            area99    = 0.0
+            area98    = 0.0
+            area97    = 0.0
+            area96    = 0.0
+            area95    = 0.0
+            c += 1
+
+        if fi not in stat:
+            if cond:
+                if fi != None:
+                    stat[fi] = np.array([1,area,area100,area99,area98,area97,area96,area95])
+                else:
+                    stat[-1] = np.array([1,area,area100,area99,area98,area97,area96,area95])
+            else:
+                if fi != None:
+                    stat[fi] = np.array([1,area])
+                else:
+                    stat[-1] = np.array([1,area])
+
+        else:
+            if cond:
+                if fi != None:
+                    stat[fi] = stat[fi] + np.array([1,area,area100,area99,area98,area97,area96,area95])
+                else:
+                    stat[-1] = stat[-1] + np.array([1,area,area100,area99,area98,area97,area96,area95])
+            else:
+                if fi != None:
+                    stat[fi] = stat[fi] + np.array([1,area])
+                else:
+                    stat[-1] = stat[-1] + np.array([1,area])
+
+
+    # Calculate total polygons and surface
+    if cond:
+        total = np.array([0,0.0,0.0,0.0,0.0,0.0,0.0,0.0])
+    else:
+        total = np.array([0,0.0])
+    for k in stat.keys():
+        total = total +  stat[k]
+            
+ 
+    if sortby == "field":
+        sortedStat = sorted(stat.items(), key=lambda x: x[0])
+    if sortby == "polygon":
+        sortedStat = sorted(stat.items(), key=lambda x: x[1][0],reverse = True)
+    if sortby == "area":
+        sortedStat = sorted(stat.items(), key=lambda x: x[1][1],reverse = True)
+
+    if cond:
+        print(" %s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"%("Class","#Poly.","Area (pix)","Area100","Area99","Area98","Area97","Area96","Area95"))
+        print("_________________________________________")
+        for ss in sortedStat:
+            print(" %s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d"%(ss[0],ss[1][0],ss[1][1]/100.,ss[1][2]/100.,ss[1][3]/100.,ss[1][4]/100.,ss[1][5]/100.,ss[1][6]/100.,ss[1][7]/100))
+    	    #print " %s\t%d\t%d"%(k,stat[k][0],stat[k][1])
+        print("_________________________________________")
+        print(" %s\t%d\t%.2f\t%3.1f"%("Total",total[0],total[1],100.0))
+        print("(%d polygons with null surface detected)"%(c))
+    else:
+        print(" %s\t%s\t%s\t%s"%("Class","#Poly.","Area (ha)","Area (%)"))
+        print("_________________________________________")
+        for ss in sortedStat:
+            print(" %s\t%d\t%.2f\t%3.1f"%(ss[0],ss[1][0],ss[1][1]/10000.,100.0*ss[1][1]/total[1]))
+    	    #print " %s\t%d\t%d"%(k,stat[k][0],stat[k][1])
+        print("_________________________________________")
+        print(" %s\t%d\t%.2f\t%3.1f"%("Total",total[0],total[1],100.0))
+        print("(%d polygons with null surface detected)"%(c))
+
 
 def StatField(inputfile, statistics):
     """ Calculate shapefile statistic """
@@ -248,8 +517,8 @@ def StatField(inputfile, statistics):
     column = "C%s"%(year)
     smcol = "S%s"%(year)
 
-    print "*** Options chosen for the statistics ***"
-    log.msg("Year: %s"%year)
+    print("*** Options chosen for the statistics ***")
+    #log.msg("Year: %s"%year)
     log.msg(classFilterType[inlist[1]])
     log.msg(featureFilterType[inlist[2]]) 
     log.msg(deleteType[inlist[3]])
@@ -270,7 +539,7 @@ def StatField(inputfile, statistics):
     layer_defn = layer.GetLayerDefn()
     
     # Construct subclass set #
-    print "Calculating statistics for %s field..."%(column) 
+    print("Calculating statistics for %s field..."%(column)) 
     stat = {}
     arearecord = set([])
     c = 0
@@ -308,10 +577,10 @@ def StatField(inputfile, statistics):
           fid = f.GetFID() 
           layer.DeleteFeature(fid)
 
-    for k in sorted (stat.keys()):  
-	print " %s\t%d\t%f"%(k,stat[k][0],stat[k][1])
+    for k in sorted (stat.keys()):
+        print(" %s\t%d\t%f"%(k,stat[k][0],stat[k][1]))
 	#print " %s\t%d\t%d"%(k,stat[k][0],stat[k][1])
-    print "(%d polygons with null surface detected)"%(c)
+    print("(%d polygons with null surface detected)"%(c))
 
 def RemovePolygons(inputfile, removefile):
     """
@@ -339,7 +608,7 @@ def RemovePolygons(inputfile, removefile):
       #  quit()
       except:
         raise
-        print "The file %s does not exist or has an incorrect format."%(removefile)
+        print("The file %s does not exist or has an incorrect format."%(removefile))
         quit()
 
     resp = raw_input("Are you sure you want to delete the %d given polygons (y or n) ?"%(len(removeid)))  
@@ -418,7 +687,37 @@ def FilterPolygons(inputfile, filterParameters):
         fid = f.GetFID()
         if f[field] in keepClasse:
             out_layer.CreateFeature(f)
-        
+
+def ExecuteMean(inputfile):
+    inputf = inputfile[0]
+    log.msg("Shapefile  %s is going to be update"%(inputf))
+
+    driver = ogr.GetDriverByName('ESRI Shapefile')
+    datasource = driver.Open(inputf, 1)
+
+    if datasource is None:
+        log.msg("Could not open file","ERROR")
+        sys.exit(1)
+
+    # get the data layer
+    layer = datasource.GetLayer()
+    layer_defn = layer.GetLayerDefn()
+
+    for f in layer:
+        try:
+            arithmetic_mean = int((f["PROP_15"] + f["PROP_16"] + f["PROP_17"])/3.0)  
+            geometric_mean  = int((f["PROP_15"]*f["PROP_16"]*f["PROP_17"])**(1/3))
+
+            f.SetField("PROP_A", arithmetic_mean)
+            layer.SetFeature(f)
+            f.SetField("PROP_G", geometric_mean)
+            layer.SetFeature(f)
+        except:
+            pass
+
+    datasource = None
+
+
 def Execute(inputfile, param):
     """ Calculate shapefile statistic """
     inputf = inputfile[0]
@@ -474,8 +773,8 @@ def Execute(inputfile, param):
 def Union(inputfiles, outputfile):
     in1 = inputfiles[0]
     in2 = inputfiles[1]
-    print "%s UNION %s = %s"%(in1, in2, outputfile)
-    print "TODO"
+    print("%s UNION %s = %s"%(in1, in2, outputfile))
+    print("TODO")
     #driver = ogr.GetDriverByName('ESRI Shapefile')
     #ds1 = driver.Open(in1, 1)
     #ds2 = driver.Open(in2, 1)
@@ -512,11 +811,19 @@ if __name__ == "__main__":
 ./ShapefileEditor.py -in shapefile.shp -cr Value Int 11 3 
     """)
     parser.add_argument("-ar", "--area", help="Create new field that contains polygon area.")
+    parser.add_argument("-ad", "--adapt", nargs="+",help="Adapt shapefile to numerical form.")
     parser.add_argument("-de", "--delete", nargs="+", help="Delete the field field_name.")
+    parser.add_argument("-gs", "--genstat", nargs='+',help="""Calculate general statistics for a given field.
+Syntax:
+./ShapefileEditor.py -in shapefile.shp -gs field sortby (sortby = field (default), area or polygon)
+""")
+
     parser.add_argument("-st", "--statistics", nargs='+',help="""Calculate statistics for a given field.
 Syntax:
 ./ShapefileEditor.py -in shapefile.shp -st field classfilter featurefilter
 """)
+
+    parser.add_argument("-le", "--legend", nargs="+",help="Create legend look-up table")
     parser.add_argument("-un", "--union", help="Create the geometric union between two shapefiles.")
     parser.add_argument("-rm", "--remove", help="Remove polygons with id contain in given file.")
     parser.add_argument("-fi", "--filter", nargs="+",help="Only keep listed classes polygons.")
@@ -528,12 +835,14 @@ Syntax:
         args.create==None and
         args.area==None and
         args.delete==None and
+        args.genstat==None and
         args.statistics==None and
+        args.legend==None and
         args.filter==None and
         args.union==None):
       # Handle help message because mutual exclusive option required it.
-      print "usage: ShapefileEditor [-h] [-re] namelist [-cr] namelist [-ar] column_name [-de] field_name [-st] column_name -[un] output_shapefile [-rm] remove.csv [-ex] parameters [-fi] parameters [-in] SHAPEFILES"
-      print "ShapefileEditor: error: too few arguments"
+      print("usage: ShapefileEditor [-h] [-re] namelist [-cr] namelist [-ar] column_name [-de] field_name [-gs] column_name [-st] column_name [-le] field legend_file [-un] output_shapefile [-rm] remove.csv [-ex] parameters [-fi] parameters [-in] SHAPEFILES")
+      print("ShapefileEditor: error: too few arguments")
       quit()
 
     if args.inputfile!=None:
@@ -555,8 +864,20 @@ Syntax:
       DeleteField(args.inputfile[0],args.delete)
       quit()
 
+    if args.inputfile!=None and args.genstat!=None:
+      GenStatField(args.inputfile[0],args.genstat)
+      quit()
+
     if args.inputfile!=None and args.statistics!=None:
       StatField(args.inputfile[0],args.statistics)
+      quit()
+
+    if args.inputfile!=None and args.legend!=None:
+      GenerateLegend(args.inputfile, args.legend)
+      quit()
+
+    if args.inputfile!=None and args.adapt!=None:
+      AdaptShapefile(args.inputfile[0], args.adapt)
       quit()
 
     if args.inputfile!=None and args.remove!=None:
@@ -572,6 +893,6 @@ Syntax:
       quit()
 
     if args.inputfile!=None and args.execute!=None:
-      Execute(args.inputfile,args.execute)
+      ExecuteMean(args.inputfile)
       quit()
 

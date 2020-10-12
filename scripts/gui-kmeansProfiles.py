@@ -92,7 +92,7 @@ class PrintConsole(QDialog):
        
 
         clearButton = QPushButton('Clear Console', self)
-        #clearButton.setToolTip('To load profile from database')
+        clearButton.setToolTip('To load profile from database')
         clearButton.clicked.connect(self.clear)
 
         vbox = QtWidgets.QVBoxLayout(self)
@@ -214,8 +214,14 @@ class ProfileWindow(QtWidgets.QWidget):
         self.col = QColor(colString)
         self.fileName = ""
         # Label
-        self.label = QLabel("No database loaded yet")
-        l.addWidget(self.label)
+        #self.label = QLabel("No database loaded yet")
+        #l.addWidget(self.label)
+
+        # export button
+        export = QPushButton('Export', self)
+        export.setToolTip('Export to shapefile ???')
+        export.clicked.connect(self.export_to_shape)
+        l.addWidget(export)
 
         # Load button
         load = QPushButton('Load Profiles', self)
@@ -226,6 +232,7 @@ class ProfileWindow(QtWidgets.QWidget):
         l.addWidget(load)
 
         self.labelKClassNumber = QLabel("Kmeans classe Number")
+        self.labelKClassNumber.setToolTip('Define number of classes')
         l.addWidget(self.labelKClassNumber)
         self.KClassNumber= QComboBox()
         self.KClassNumber.addItem("1")       
@@ -249,8 +256,11 @@ class ProfileWindow(QtWidgets.QWidget):
         self.ClassBefore.currentIndexChanged.connect(self.selectionchange)
         self.ClassAfter.currentIndexChanged.connect(self.selectionchange)
         self.KClassNumber.currentIndexChanged.connect(self.selectionchange)
-        # Primitive picker
 
+        
+
+
+        # Primitive picker
         self.BandsList = QListWidget()
         ls = ['B2', 'B3', 'B4','B5','B6','B7','B8','B8A','B11','B12','NDVI','Green NDWI','Swir NDWI','Brightness']
         defaultItem = QListWidgetItem('NDVI')
@@ -325,6 +335,12 @@ class ProfileWindow(QtWidgets.QWidget):
 
     def click_to_load(self):
         self.openFileNameDialog()
+
+    def export_to_shape(self):
+        print(self.meansSoil.values)
+        self.cprint("Export %d"%(self.nclass))
+
+
 
     #def CreateTable(self,data,table,header):
     #    Nrow = len(data)
@@ -492,7 +508,10 @@ class ProfileWindow(QtWidgets.QWidget):
         features = PerMeanProfiles.values
         whitened = whiten(features)
         codebook, labels = kmeans2(whitened,nclass)
-        
+       
+        print("label ",labels,len(labels))
+        print("pro ", profiles["I17"])
+
         # Add kmeans class to profiles
         klim = 4
         self.KmeansMean = AllMeanProfiles
@@ -556,7 +575,7 @@ class ProfileWindow(QtWidgets.QWidget):
             ax1.set_title("%s profiles for %s clustered in %d k-means classes"%(prim.upper(),tclass2,nclass))
         else:
             #ax1.set_title("k-means of the classes %s/%s with %d clusters (%s %s)"%(tclass1,tclass2,nclass,"2018","T31TJC"))
-            ax1.set_title("%s profiles for %s clustered in %d k-means classes"%(prim.upper(),tclass1,tclass2))
+            ax1.set_title("%s profiles for %s/%s clustered in %d k-means classes"%(prim.upper(),tclass1,tclass2,nclass))
 
         ax1.set_xticks(days)
         ax1.set_xticklabels(self.doy,rotation = 90,fontsize = 8)

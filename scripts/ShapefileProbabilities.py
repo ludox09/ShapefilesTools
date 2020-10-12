@@ -26,8 +26,10 @@ groupmap4   = param.groupmap4 # Classification Legend
 
 #####################
 if(False):
-    sc = ['CZH', 'BTH', 'BDH', 'ORH', 'TTH', 'AVH', 'ORP', 'FVL', 'PHI', 'LIH', 'TRN', 'SOG', 'MIS', 'MIE', 'MID', 'SOJ', 'SRS', 'PCH', 'LEC', 'HAR', 'LIP', 'BTN', 'AIL', 'JXX', 'PPX', 'PTR', 'PTX', 'LXX', 'TRX', 'OTH']
-    
+
+    sc = ['CZH', 'BLE', 'ORP', 'FVX', 'TRN', 'SOG', 'MAI', 'SOJ', 'SRS', 'LEG', 'HAR', 'LIP', 'JXX', 'PPX', 'PTR', 'PTX', 'LUX', 'TRX', 'OTH']
+
+
     titles = [
     "Rotation RPG 2016 (V) and 2017 (H) - Parcel Number",
     "Rotation RPG 2016 (V) and 2017 (H) - Surface (ha)"
@@ -196,7 +198,7 @@ Syntax:
       
       # Export matrix with precise gathering
       log.msg("Export matrix with precise gathering")
-      ExportMatrix("Precise-Filtered",year1,year2,layer,groupmap1)
+   ##   #ExportMatrix("Precise-Filtered",year1,year2,layer,groupmap1)
       
       # Export matrix with large gathering
       log.msg("Export matrix with large gathering")
@@ -204,11 +206,11 @@ Syntax:
       
       # Export matrix with large gathering
       log.msg("Export matrix with large gathering")
-      ExportMatrix("Season-Filtered",year1,year2,layer,groupmap3)
+   ##   #ExportMatrix("Season-Filtered",year1,year2,layer,groupmap3)
      
       # Export matrix with classif gathering
       log.msg("Export matrix with classif gathering")
-      ExportMatrix("Classif-Filtered",year1,year2,layer,groupmap4)
+   ##   #ExportMatrix("Classif-Filtered",year1,year2,layer,groupmap4)
 
       file1 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Precise-Filtered") 
       file2 = "Rotation-RPG-%d-%d-%s.pdf"%(year1,year2,"Large-Filtered") 
